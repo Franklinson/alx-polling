@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createPoll } from "@/lib/actions/polls";
 import { VoteType } from "@/lib/types/database";
@@ -15,8 +22,9 @@ export default function NewPollPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  
+
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -53,18 +61,9 @@ export default function NewPollPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      console.log("Submitting poll data:", {
-        title,
-        description: description || undefined,
-        vote_type: voteType,
-        allow_multiple_votes: allowMultipleVotes,
-        max_votes_per_user: maxVotesPerUser,
-        is_public: isPublic,
-        options: options.filter(opt => opt.trim() !== "")
-      });
-
       const result = await createPoll({
         title,
         description: description || undefined,
@@ -72,12 +71,16 @@ export default function NewPollPage() {
         allow_multiple_votes: allowMultipleVotes,
         max_votes_per_user: maxVotesPerUser,
         is_public: isPublic,
-        options: options.filter(opt => opt.trim() !== "")
+        options: options.filter((opt) => opt.trim() !== ""),
       });
 
       if (result.success && result.pollId) {
-        console.log("Poll created successfully, redirecting to:", result.pollId);
-        router.push(`/polls/${result.pollId}`);
+        setSuccess("Poll created successfully! Redirecting...");
+
+        // Redirect to polls page after showing success message
+        setTimeout(() => {
+          router.push("/polls");
+        }, 1500);
       } else {
         throw new Error("Failed to create poll - no poll ID returned");
       }
@@ -88,8 +91,9 @@ export default function NewPollPage() {
     }
   };
 
-  const validOptions = options.filter(opt => opt.trim() !== "");
-  const canSubmit = title.trim().length >= 3 && validOptions.length >= 2 && !loading;
+  const validOptions = options.filter((opt) => opt.trim() !== "");
+  const canSubmit =
+    title.trim().length >= 3 && validOptions.length >= 2 && !loading;
 
   // Don't render until mounted to prevent hydration issues
   if (!mounted) {
@@ -108,7 +112,9 @@ export default function NewPollPage() {
       <Card>
         <CardHeader>
           <CardTitle>Create New Poll</CardTitle>
-          <CardDescription>Create a new poll with multiple options for others to vote on.</CardDescription>
+          <CardDescription>
+            Create a new poll with multiple options for others to vote on.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -203,7 +209,9 @@ export default function NewPollPage() {
                     min={1}
                     max={validOptions.length}
                     value={maxVotesPerUser}
-                    onChange={(e) => setMaxVotesPerUser(parseInt(e.target.value) || 1)}
+                    onChange={(e) =>
+                      setMaxVotesPerUser(parseInt(e.target.value) || 1)
+                    }
                   />
                 </div>
               )}
@@ -254,7 +262,13 @@ export default function NewPollPage() {
               </p>
             </div>
 
-            {/* Error Display */}
+            {/* Success/Error Display */}
+            {success && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-600">{success}</p>
+              </div>
+            )}
+
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-sm text-red-600">{error}</p>
@@ -265,9 +279,13 @@ export default function NewPollPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={!canSubmit}
+              disabled={!canSubmit || !!success}
             >
-              {loading ? "Creating Poll..." : "Create Poll"}
+              {loading
+                ? "Creating Poll..."
+                : success
+                  ? "Poll Created!"
+                  : "Create Poll"}
             </Button>
           </form>
         </CardContent>
@@ -281,5 +299,3 @@ export default function NewPollPage() {
     </div>
   );
 }
-
-

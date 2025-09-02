@@ -1,6 +1,6 @@
-export type PollStatus = 'draft' | 'active' | 'closed' | 'archived';
-export type VoteType = 'single' | 'multiple';
-export type ShareType = 'link' | 'qr' | 'embed';
+export type PollStatus = "draft" | "active" | "closed" | "archived";
+export type VoteType = "single" | "multiple";
+export type ShareType = "link" | "qr" | "embed";
 
 export interface Profile {
   id: string;
@@ -95,39 +95,39 @@ export interface VoteData {
 
 // Database enums for Supabase
 export const DatabaseEnums = {
-  poll_status: ['draft', 'active', 'closed', 'archived'] as const,
-  vote_type: ['single', 'multiple'] as const,
-  share_type: ['link', 'qr', 'embed'] as const,
+  poll_status: ["draft", "active", "closed", "archived"] as const,
+  vote_type: ["single", "multiple"] as const,
+  share_type: ["link", "qr", "embed"] as const,
 } as const;
 
-// Supabase database schema types
+// Supabase database schema types for SSR compatibility
 export interface Database {
   public: {
     Tables: {
       profiles: {
         Row: Profile;
-        Insert: Omit<Profile, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>;
+        Insert: Omit<Profile, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<Profile, "id" | "created_at" | "updated_at">>;
       };
       polls: {
         Row: Poll;
-        Insert: Omit<Poll, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Poll, 'id' | 'created_at' | 'updated_at'>>;
+        Insert: Omit<Poll, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<Poll, "id" | "created_at" | "updated_at">>;
       };
       poll_options: {
         Row: PollOption;
-        Insert: Omit<PollOption, 'id' | 'created_at'>;
-        Update: Partial<Omit<PollOption, 'id' | 'created_at'>>;
+        Insert: Omit<PollOption, "id" | "created_at">;
+        Update: Partial<Omit<PollOption, "id" | "created_at">>;
       };
       votes: {
         Row: Vote;
-        Insert: Omit<Vote, 'id' | 'created_at'>;
-        Update: Partial<Omit<Vote, 'id' | 'created_at'>>;
+        Insert: Omit<Vote, "id" | "created_at">;
+        Update: Partial<Omit<Vote, "id" | "created_at">>;
       };
       poll_shares: {
         Row: PollShare;
-        Insert: Omit<PollShare, 'id' | 'created_at'>;
-        Update: Partial<Omit<PollShare, 'id' | 'created_at'>>;
+        Insert: Omit<PollShare, "id" | "created_at">;
+        Update: Partial<Omit<PollShare, "id" | "created_at">>;
       };
     };
     Views: {
@@ -150,3 +150,80 @@ export interface Database {
     };
   };
 }
+
+// Additional types for better type safety with Supabase SSR
+export type Tables<
+  PublicTableNameOrOptions extends
+    | keyof Database["public"]["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Row: infer R;
+    }
+    ? R
+    : never
+  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
+    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+        Row: infer R;
+      }
+      ? R
+      : never
+    : never;
+
+export type TablesInsert<
+  PublicTableNameOrOptions extends
+    | keyof Database["public"]["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I;
+    }
+    ? I
+    : never
+  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
+    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+        Insert: infer I;
+      }
+      ? I
+      : never
+    : never;
+
+export type TablesUpdate<
+  PublicTableNameOrOptions extends
+    | keyof Database["public"]["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U;
+    }
+    ? U
+    : never
+  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
+    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+        Update: infer U;
+      }
+      ? U
+      : never
+    : never;
+
+export type Enums<
+  PublicEnumNameOrOptions extends
+    | keyof Database["public"]["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof Database["public"]["Enums"]
+    ? Database["public"]["Enums"][PublicEnumNameOrOptions]
+    : never;

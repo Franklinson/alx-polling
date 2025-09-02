@@ -1,51 +1,77 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import type { Database } from "@/lib/types/database";
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  
-  // Get the pathname for easier access
-  const pathname = req.nextUrl.pathname;
-  
-  // Skip middleware for static files and API routes
-  if (pathname.startsWith('/_next') || pathname.startsWith('/api')) {
-    return res;
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  });
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // If Supabase is not configured, allow access but log warning
+    console.warn("Supabase environment variables not configured");
+    return supabaseResponse;
   }
 
-  // Check for Supabase authentication cookies
-  // Supabase stores auth tokens in cookies with these patterns
-  const allCookies = req.cookies.getAll();
-  
-  // Look for any cookie that contains 'sb-' (Supabase) and has a value
-  const hasAuthCookie = allCookies.some(cookie => 
-    cookie.name.startsWith('sb-') && 
-    cookie.value && 
-    cookie.value.length > 0 &&
-    cookie.value !== 'null' &&
-    cookie.value !== 'undefined'
-  );
-  
-  const isAuthed = hasAuthCookie;
-  
+  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          request.cookies.set(name, value);
+          supabaseResponse.cookies.set(name, value, options);
+        });
+      },
+    },
+  });
+
+  // Get the current user session
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+
+  // Skip middleware for static files and API routes
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.includes(".")
+  ) {
+    return supabaseResponse;
+  }
+
   // Define route types
-  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
-  const needsAuth = pathname.startsWith("/polls");
+  const isAuthPage =
+    pathname.startsWith("/login") || pathname.startsWith("/register");
+  const isProtectedRoute =
+    pathname.startsWith("/polls") && pathname !== "/polls";
+  const isPollsIndex = pathname === "/polls";
 
   // If user is on auth page but already authenticated, redirect to polls
-  if (isAuthPage && isAuthed) {
-    const url = req.nextUrl.clone();
+  if (isAuthPage && user) {
+    const url = request.nextUrl.clone();
     url.pathname = "/polls";
     return NextResponse.redirect(url);
   }
 
-  // If user needs auth but isn't authenticated, redirect to login
-  if (needsAuth && !isAuthed) {
-    const url = req.nextUrl.clone();
+  // For protected routes, require authentication
+  if (isProtectedRoute && !user) {
+    const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);
   }
 
-  return res;
+  // For polls index, allow viewing but some features require auth
+  // (handled in the component itself)
+
+  return supabaseResponse;
 }
 
 export const config = {
@@ -55,10 +81,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - api (API routes)
+     * Feel free to modify this pattern to include more paths.
      */
-    "/((?!_next/static|_next/image|favicon.ico|api).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
-
-
