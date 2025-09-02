@@ -1,61 +1,96 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { getPolls } from "@/lib/actions/polls";
+import { formatDistanceToNow } from "date-fns";
 
-type PollItem = { id: string; title: string; description: string; tags?: string[] };
+export default async function PollsIndexPage() {
+  let polls: any[] = [];
+  let error: string | null = null;
 
-export default function PollsIndexPage() {
-  const [query, setQuery] = useState("");
+  try {
+    polls = await getPolls();
+  } catch (err) {
+    error = err instanceof Error ? err.message : "Failed to load polls";
+  }
 
-  const polls: PollItem[] = [
-    { id: "1", title: "Favorite programming language?", description: "Vote for your top language.", tags: ["dev", "languages"] },
-    { id: "2", title: "Best JS framework?", description: "React, Vue, Svelte, or Angular?", tags: ["javascript", "frameworks"] },
-    { id: "3", title: "Tabs or Spaces?", description: "Choose wisely.", tags: ["dev", "formatting"] },
-    { id: "4", title: "Dark mode all the time?", description: "Dark vs Light.", tags: ["ui", "theme"] }
-  ];
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return polls;
-    return polls.filter((p) =>
-      [p.title, p.description, ...(p.tags || [])].some((v) => v.toLowerCase().includes(q))
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600 mb-4">{error}</p>
+        <p className="text-muted-foreground">Please try refreshing the page.</p>
+      </div>
     );
-  }, [query]);
+  }
+
+  if (polls.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <h3 className="text-lg font-semibold mb-2">No polls yet</h3>
+        <p className="text-muted-foreground mb-4">
+          Be the first to create a poll and start gathering opinions!
+        </p>
+        <Link href="/polls/new">
+          <span className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+            Create Your First Poll
+          </span>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search polls by title, description, or tag"
-          className="sm:max-w-sm"
-        />
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-medium">Recent Polls</h2>
+          <p className="text-sm text-muted-foreground">
+            {polls.length} active poll{polls.length !== 1 ? 's' : ''} available
+          </p>
+        </div>
       </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((poll) => (
+        {polls.map((poll) => (
           <Link key={poll.id} href={`/polls/${poll.id}`}>
-            <Card className="h-full transition hover:shadow-md">
+            <Card className="h-full transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer">
               <CardHeader>
-                <CardTitle className="line-clamp-1">{poll.title}</CardTitle>
-                <CardDescription className="line-clamp-2">{poll.description}</CardDescription>
+                <div className="flex items-start justify-between">
+                  <CardTitle className="line-clamp-2 leading-tight">{poll.title}</CardTitle>
+                  <Badge variant={poll.is_public ? "default" : "secondary"}>
+                    {poll.is_public ? "Public" : "Private"}
+                  </Badge>
+                </div>
+                {poll.description && (
+                  <CardDescription className="line-clamp-2">{poll.description}</CardDescription>
+                )}
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                {(poll.tags || []).map((t) => (
-                  <Badge key={t} variant="secondary">{t}</Badge>
-                ))}
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {poll.poll_options?.length || 0} options
+                  </span>
+                  <span className="text-muted-foreground">
+                    {poll.votes?.[0]?.count || 0} votes
+                  </span>
+                </div>
+                
+                {poll.profiles && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>by {poll.profiles.full_name || 'Anonymous'}</span>
+                  </div>
+                )}
+                
+                <div className="text-xs text-muted-foreground">
+                  {formatDistanceToNow(new Date(poll.created_at), { addSuffix: true })}
+                </div>
               </CardContent>
             </Card>
           </Link>
         ))}
       </div>
-      {filtered.length === 0 && (
-        <p className="text-sm text-muted-foreground">No polls match your search.</p>
-      )}
     </div>
   );
 }
